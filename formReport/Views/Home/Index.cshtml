@@ -1,0 +1,343 @@
+﻿@{
+    ViewData["Title"] = "Land Valuation Report";
+    Layout = "~/Pages/Shared/_Layout.cshtml";
+}
+
+<h1>Hasil Report</h1>
+
+<!-- Modal Tambah Data -->
+<div class="modal fade" id="addLandValuationModal" tabindex="-1" aria-labelledby="addModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addModalLabel">Tambah Data Baru</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addLandValuationForm">
+                    <div class="mb-3">
+                        <label for="landArea" class="form-label">Land Area (m²)</label>
+                        <input type="number" class="form-control" id="landArea" name="landArea" placeholder="Enter land area" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="marketPricePerSquareMeter" class="form-label">Price per m² (Rp)</label>
+                        <input type="number" class="form-control" id="marketPricePerSquareMeter" name="marketPricePerSquareMeter" placeholder="Enter price per m²" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="premiumFactor" class="form-label">Premium Factor (%)</label>
+                        <input type="number" class="form-control" id="premiumFactor" name="premiumFactor" placeholder="Enter premium factor" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="discountFactor" class="form-label">Discount Factor (%)</label>
+                        <input type="number" class="form-control" id="discountFactor" name="discountFactor" placeholder="Enter discount factor" required>
+                    </div>
+                    <button type="button" class="btn btn-primary" id="saveNewLandValuation">Save</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<button type="button" class="btn btn-success mb-3" data-bs-toggle="modal" data-bs-target="#addLandValuationModal">
+    Add Data
+</button>
+<table id="landValuationTable" class="table table-striped table-bordered" style="width:100%">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Land Area (m²)</th>
+            <th>Price per m² (Rp)</th>
+            <th>Premium Factor (%)</th>
+            <th>Discount Factor (%)</th>
+            <th>Final Value (Rp)</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        <!-- Data akan diisi melalui AJAX -->
+    </tbody>
+</table>
+
+@*<div class="modal fade" id="landValuationModal" tabindex="-1" aria-labelledby="modalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalLabel">Land Valuation Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p><strong>ID:</strong> <span id="detailId"></span></p>
+                <p><strong>Land Area:</strong> <span id="detailLandArea"></span> m²</p>
+                <p><strong>Price per m²:</strong> Rp <span id="detailPrice"></span></p>
+                <p><strong>Premium Factor:</strong> <span id="detailPremium"></span>%</p>
+                <p><strong>Discount Factor:</strong> <span id="detailDiscount"></span>%</p>
+                <p><strong>Final Value:</strong> Rp <span id="detailFinalValue"></span></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>*@
+
+<!-- Modal View Data -->
+<div class="modal fade" id="landValuationModal" tabindex="-1" aria-labelledby="modalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalLabel">Land Valuation Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p><strong>ID:</strong> <span id="detailId"></span></p>
+                <p><strong>Land Area:</strong> <span id="detailLandArea"></span> m²</p>
+                <p><strong>Price per m²:</strong> Rp <span id="detailPrice"></span></p>
+                <p><strong>Premium Factor:</strong> <span id="detailPremium"></span>%</p>
+                <p><strong>Discount Factor:</strong> <span id="detailDiscount"></span>%</p>
+                <p><strong>Final Value:</strong> Rp <span id="detailFinalValue"></span></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-success" id="printData">Cetak Data</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
+<script>
+    $(document).ready(function () {
+        $('#landValuationTable').DataTable({
+            "ajax": {
+                "url": "https://localhost:7080/api/LandValuation", // API URL
+                "dataSrc": "" // Data langsung dari root array
+            },
+            "columns": [
+                {
+                    "data": null, // Kolom nomor urut
+                    "render": function (data, type, row, meta) {
+                        return meta.row + 1; // Nomor urut (1-based index)
+                    }
+                },
+                { "data": "landArea" },
+                { "data": "marketPricePerSquareMeter" },
+                { "data": "premiumFactor" },
+                { "data": "discountFactor" },
+                { "data": "finalValue" },
+                {
+                    "data": null,
+                    "render": function (data, type, row) {
+                        return `
+                            <button class="btn btn-primary btn-sm view-details" data-id="${row.id}" data-bs-toggle="modal" data-bs-target="#landValuationModal">View</button>
+                            <button class="btn btn-warning btn-sm update-data" data-id="${row.id}" data-bs-toggle="modal" data-bs-target="#addLandValuationModal">Update</button>
+                            <button class="btn btn-danger btn-sm delete-data" data-id="${row.id}">Delete</button>
+                        `;
+                    }
+                }
+            ],
+            "language": {
+                "emptyTable": "No data available"
+            },
+            "pageLength" : 10,
+            "paging": true,
+            "searching": true,
+            "info": true,
+            "lengthChange": true
+        });
+
+        // Event untuk tombol Update
+        $('#landValuationTable').on('click', '.update-data', function () {
+            const id = $(this).data('id');
+            fetchUpdateData(id);
+        });
+
+        // Fungsi untuk mengambil data saat tombol Update diklik
+        function fetchUpdateData(id) {
+            $.ajax({
+                url: `https://localhost:7080/api/LandValuation/${id}`,
+                type: "GET",
+                success: function (data) {
+                    // Isi data ke dalam modal
+                    $('#landArea').val(data.landArea);
+                    $('#marketPricePerSquareMeter').val(data.marketPricePerSquareMeter);
+                    $('#premiumFactor').val(data.premiumFactor);
+                    $('#discountFactor').val(data.discountFactor);
+
+                    // Simpan ID di atribut modal
+                    $('#addLandValuationModal').data('id', id);
+                },
+                error: function (xhr, status, error) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Gagal!',
+                        text: 'Gagal mengambil data untuk update.',
+                    });
+                }
+            });
+        }
+
+        // Event untuk tombol view details
+        $('#landValuationTable').on('click', '.view-details', function () {
+            var id = $(this).data('id');
+            $.ajax({
+                url: `https://localhost:7080/api/LandValuation/${id}`,
+                type: "GET",
+                success: function (data) {
+                    // Isi data ke modal
+                    $('#detailId').text(data.id);
+                    $('#detailLandArea').text(data.landArea);
+                    $('#detailPrice').text(data.marketPricePerSquareMeter);
+                    $('#detailPremium').text(data.premiumFactor);
+                    $('#detailDiscount').text(data.discountFactor);
+                    $('#detailFinalValue').text(data.finalValue);
+                },
+                error: function () {
+                    alert('Error fetching data.');
+                }
+            });
+        });
+
+        // Reset form saat modal dibuka kembali
+        $('#addLandValuationModal').on('show.bs.modal', function () {
+            // Kosongkan semua input di form
+            $('#addLandValuationForm').trigger("reset");
+        });
+
+        // Submit Form Tambah atau Update Data
+        $('#saveNewLandValuation').click(function () {
+            const id = $('#addLandValuationModal').data('id'); // Ambil ID dari modal (jika ada)
+            const landValuationData = {
+                landArea: parseFloat($('#landArea').val()),
+                marketPricePerSquareMeter: parseFloat($('#marketPricePerSquareMeter').val()),
+                premiumFactor: parseFloat($('#premiumFactor').val()) || 0,
+                discountFactor: parseFloat($('#discountFactor').val()) || 0
+            };
+
+            // Validasi data wajib diisi
+            if (isNaN(landValuationData.landArea) || isNaN(landValuationData.marketPricePerSquareMeter)) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Oops...',
+                    text: 'Field Land Area dan Price per m² harus diisi!',
+                });
+                return;
+            }
+
+            // Pilih antara Tambah atau Update berdasarkan ID
+            const url = id
+                ? `https://localhost:7080/api/LandValuation/${id}` // Update jika ID ada
+                : "https://localhost:7080/api/LandValuation"; // Tambah jika ID tidak ada
+            const method = id ? "PUT" : "POST";
+
+            $.ajax({
+                url: url,
+                type: method,
+                contentType: "application/json",
+                data: JSON.stringify(landValuationData),
+                success: function () {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Berhasil!',
+                        text: id ? 'Data berhasil diperbarui.' : 'Data berhasil ditambahkan.',
+                    }).then(() => {
+                        // Clear form
+                        $('#addLandValuationForm').trigger("reset");
+                        $('#addLandValuationModal').removeData('id'); // Hapus ID dari modal
+                        $('#addLandValuationModal').modal('hide');
+
+                        // Reload DataTable
+                        $('#landValuationTable').DataTable().ajax.reload();
+                    });
+                },
+                error: function (xhr, status, error) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Gagal!',
+                        text: 'Terjadi kesalahan saat menyimpan data.',
+                    });
+                }
+            });
+        });
+
+        // Reset modal saat modal ditutup
+        //$('#addLandValuationModal').on('hidden.bs.modal', function () {
+          //  $('#addLandValuationForm').trigger("reset"); // Reset form
+            //$(this).removeData('id'); // Hapus data ID dari modal
+        //});
+
+        //$('#addLandValuationModal').on('hidden.bs.modal', function () {
+         //   $('.modal-backdrop').remove();
+        //});
+
+        // Event untuk tombol Delete
+        $('#landValuationTable').on('click', '.delete-data', function () {
+            const id = $(this).data('id');
+            deleteData(id);
+        });
+
+        // Fungsi untuk Delete Data
+        function deleteData(id) {
+            Swal.fire({
+                title: 'Yakin ingin menghapus data ini?',
+                text: "Data yang dihapus tidak dapat dikembalikan!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Yes, delete it!'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.ajax({
+                        url: `https://localhost:7080/api/LandValuation/${id}`,
+                        type: "DELETE",
+                        success: function () {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Deleted!',
+                                text: 'Data berhasil dihapus.',
+                            }).then(() => {
+                                $('#landValuationTable').DataTable().ajax.reload(); // Reload DataTable
+                            });
+                        },
+                        error: function (xhr, status, error) {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Gagal!',
+                                text: 'Terjadi kesalahan saat menghapus data.',
+                            });
+                        }
+                    });
+                }
+            });
+        }
+
+        // Cetak data ke PDF
+        $('#printData').click(function () {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            // Ambil data dari modal
+            const id = $('#detailId').text();
+            const landArea = $('#detailLandArea').text();
+            const price = $('#detailPrice').text();
+            const premium = $('#detailPremium').text();
+            const discount = $('#detailDiscount').text();
+            const finalValue = $('#detailFinalValue').text();
+
+            // Isi konten PDF
+            doc.setFontSize(16);
+            doc.text("Land Valuation Details", 10, 10);
+
+            doc.setFontSize(12);
+            doc.text(`ID: ${id}`, 10, 20);
+            doc.text(`Land Area: ${landArea} m²`, 10, 30);
+            doc.text(`Price per m²: Rp ${price}`, 10, 40);
+            doc.text(`Premium Factor: ${premium}%`, 10, 50);
+            doc.text(`Discount Factor: ${discount}%`, 10, 60);
+            doc.text(`Final Value: Rp ${finalValue}`, 10, 70);
+
+            // Simpan PDF
+            doc.save(`Land_Valuation_${id}.pdf`);
+        });
+    });
+</script>
